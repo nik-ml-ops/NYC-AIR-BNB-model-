@@ -3,8 +3,8 @@
    script.js
    ========================================================== */
 
-const API_URL = "http://127.0.0.1:8000/predict";
-const HEALTH_URL = "http://127.0.0.1:8000/health";
+const API_URL = "/predict";
+const HEALTH_URL = "/health";
 
 const dom = {};
 const uiIds = [
