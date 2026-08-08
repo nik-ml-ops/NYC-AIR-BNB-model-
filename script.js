@@ -98,7 +98,8 @@ async function handleSubmit(event) {
         console.log("Sending prediction request to", API_URL, payload);
         const response = await fetch(API_URL, {
             method: "POST",
-            mode: "cors",
+            cache: "no-store",
+            credentials: "same-origin",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
@@ -161,7 +162,7 @@ function renderPrediction(data) {
 
 window.addEventListener("load", () => {
     initUI();
-    fetch(HEALTH_URL)
+    fetch(HEALTH_URL, { cache: "no-store", credentials: "same-origin" })
         .then((res) => {
             if (!res.ok) {
                 throw new Error(`Health check failed: ${res.status} ${res.statusText}`);
