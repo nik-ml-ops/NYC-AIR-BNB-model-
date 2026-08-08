@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airbnb Room Type Predictor</title>
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="contex.css">
+</head>
+
+<body>
+
+    <!-- =========================
+            HERO
+    ========================== -->
+
+    <header class="hero">
+
+        <nav>
+
+            <div class="logo">
+                <i class="fa-solid fa-house"></i>
+                Airbnb Predictor
+            </div>
+
+            <button id="themeBtn">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+
+        </nav>
+
+        <div class="hero-content">
+
+            <h1>
+                Predict the
+                <span>Room Type</span>
+                using Machine Learning
+            </h1>
+
+            <p>
+                Enter Airbnb listing details and let the ML model
+                predict whether it is an Entire Home,
+                Private Room or Shared Room.
+            </p>
+
+        </div>
+
+    </header>
+
+    <!-- =========================
+            MAIN
+    ========================== -->
+
+    <main class="container">
+
+        <!-- FORM -->
+
+        <section class="card">
+
+            <div class="card-title">
+
+                <i class="fa-solid fa-sliders"></i>
+
+                <h2>Listing Details</h2>
+
+            </div>
+
+            <form id="predictionForm">
+
+                <!-- ROW 1 -->
+
+                <div class="grid">
+
+                    <div class="input-group">
+                        <label>Latitude</label>
+                        <input
+                            type="number"
+                            id="latitude"
+                            step="0.000001"
+                            placeholder="40.7128"
+                            required>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Longitude</label>
+                        <input
+                            type="number"
+                            id="longitude"
+                            step="0.000001"
+                            placeholder="-73.935242"
+                            required>
+                    </div>
+
+                </div>
+
+                <!-- ROW 2 -->
+
+                <div class="grid">
+
+                    <div class="input-group">
+                        <label>Price ($)</label>
+                        <input
+                            type="number"
+                            id="price"
+                            placeholder="150"
+                            required>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Minimum Nights</label>
+                        <input
+                            type="number"
+                            id="minimum_nights"
+                            placeholder="2"
+                            required>
+                    </div>
+
+                </div>
+
+                <!-- ROW 3 -->
+
+                <div class="grid">
+
+                    <div class="input-group">
+                        <label>Number of Reviews</label>
+                        <input
+                            type="number"
+                            id="number_of_reviews"
+                            placeholder="120"
+                            required>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Reviews Per Month</label>
+                        <input
+                            type="number"
+                            step="0.1"
+                            id="reviews_per_month"
+                            placeholder="4.6"
+                            required>
+                    </div>
+
+                </div>
+
+                <!-- ROW 4 -->
+
+                <div class="grid">
+
+                    <div class="input-group">
+                        <label>Host Listings Count</label>
+                        <input
+                            type="number"
+                            id="calculated_host_listings_count"
+                            placeholder="3"
+                            required>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Availability (365)</label>
+                        <input
+                            type="number"
+                            id="availability_365"
+                            placeholder="180"
+                            required>
+                    </div>
+
+                </div>
+
+                <!-- ROW 5 -->
+
+                <div class="grid">
+
+                    <div class="input-group">
+
+                        <label>Neighbourhood Group</label>
+
+                        <select id="neighbourhood_group" required>
+
+                            <option value="">Select</option>
+
+                            <option>Bronx</option>
+                            <option>Brooklyn</option>
+                            <option>Manhattan</option>
+                            <option>Queens</option>
+                            <option>Staten Island</option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="input-group">
+
+                        <label>Neighbourhood</label>
+
+                        <input
+                            type="text"
+                            id="neighbourhood"
+                            placeholder="Williamsburg"
+                            required>
+
+                    </div>
+
+                </div>
+
+                <button
+                    class="predict-btn"
+                    type="submit">
+
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+
+                    Predict Room Type
+
+                </button>
+
+            </form>
+
+        </section>
+
+        <!-- RESULT -->
+
+        <section class="card result-card">
+
+            <div class="card-title">
+
+                <i class="fa-solid fa-chart-column"></i>
+
+                <h2>Prediction Result</h2>
+
+            </div>
+
+            <div id="loading" class="hidden">
+
+                <div class="loader"></div>
+
+                <p>Running Machine Learning Model...</p>
+
+            </div>
+
+            <div id="result" class="hidden">
+
+                <div class="prediction-box">
+
+                    <i class="fa-solid fa-house-circle-check"></i>
+
+                    <h2 id="predictionText">
+                        --
+                    </h2>
+
+                    <p>
+                        Predicted Room Type
+                    </p>
+
+                </div>
+
+                <div class="probability-section">
+
+                    <h3>Prediction Confidence</h3>
+
+                    <div id="probabilityBars">
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div id="emptyState">
+
+                <i class="fa-solid fa-chart-line"></i>
+
+                <h3>No Prediction Yet</h3>
+
+                <p>
+                    Fill out the form and click
+                    <strong>Predict Room Type</strong>.
+                </p>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+
+    <footer>
+
+        <p>
+            Built with ❤️ using FastAPI & Machine Learning
+        </p>
+
+    </footer>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
