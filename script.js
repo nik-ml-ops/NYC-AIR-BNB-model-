@@ -3,6 +3,7 @@
    script.js
    ========================================================== */
 
+const APP_VERSION = "4";
 const API_URL = "/predict";
 const HEALTH_URL = "/health";
 
@@ -18,6 +19,7 @@ const uiIds = [
 ];
 
 function initUI() {
+    console.log(`App version ${APP_VERSION} loaded`);
     uiIds.forEach((id) => {
         dom[id] = document.getElementById(id);
     });
@@ -95,7 +97,7 @@ async function handleSubmit(event) {
     }
 
     try {
-        console.log("Sending prediction request to", API_URL, payload);
+        console.log(`App version ${APP_VERSION}: Sending prediction request to`, API_URL, payload);
         const response = await fetch(API_URL, {
             method: "POST",
             cache: "no-store",
@@ -104,12 +106,20 @@ async function handleSubmit(event) {
             body: JSON.stringify(payload)
         });
 
+        const bodyText = await response.text();
+        console.log(`App version ${APP_VERSION}: Received response`, response.status, bodyText);
+
         if (!response.ok) {
-            const body = await response.text();
-            throw new Error(`Server error ${response.status}: ${body}`);
+            throw new Error(`Server error ${response.status}: ${bodyText}`);
         }
 
-        const data = await response.json();
+        let data;
+        try {
+            data = JSON.parse(bodyText);
+        } catch (parseError) {
+            throw new Error(`Invalid JSON response: ${bodyText || "<empty>"}`);
+        }
+
         renderPrediction(data);
     } catch (err) {
         setError(err.message);
@@ -164,6 +174,7 @@ window.addEventListener("load", () => {
     initUI();
     fetch(HEALTH_URL, { cache: "no-store", credentials: "same-origin" })
         .then((res) => {
+            console.log(`App version ${APP_VERSION}: health response`, res.status, res.statusText);
             if (!res.ok) {
                 throw new Error(`Health check failed: ${res.status} ${res.statusText}`);
             }

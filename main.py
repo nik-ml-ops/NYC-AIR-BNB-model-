@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
@@ -9,6 +10,8 @@ import joblib
 import sklearn.compose._column_transformer as _column_transformer
 from sklearn.impute import SimpleImputer
 from fastapi.middleware.cors import CORSMiddleware
+
+BASE_DIR = Path(__file__).resolve().parent
 
 app = FastAPI()
 app.add_middleware(
@@ -28,7 +31,7 @@ async def no_cache_middleware(request, call_next):
         response.headers["Expires"] = "0"
     return response
 
-app.mount("/static", StaticFiles(directory=".", html=True), name="static")
+app.mount("/static", StaticFiles(directory=str(BASE_DIR), html=True), name="static")
 
 # Compatibility shim for models saved with older scikit-learn versions
 if not hasattr(_column_transformer, '_RemainderColsList'):
@@ -68,7 +71,11 @@ class Feature(BaseModel):
 
 @app.get('/')
 def greet():
-    return FileResponse('index.html')
+    return FileResponse(str(BASE_DIR / 'index.html'))
+
+@app.get('/index.html')
+def index_html():
+    return FileResponse(str(BASE_DIR / 'index.html'))
 
 @app.get('/health')
 def health_check():
@@ -76,7 +83,11 @@ def health_check():
 
 @app.get('/script.js')
 def script_js():
-    return FileResponse('script.js')
+    return FileResponse(str(BASE_DIR / 'script.js'))
+
+@app.get('/contex.css')
+def contex_css():
+    return FileResponse(str(BASE_DIR / 'contex.css'), media_type='text/css')
 
 @app.get('/contex.css')
 def contex_css():
