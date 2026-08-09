@@ -1,14 +1,8 @@
-/* ==========================================================
-   AIRBNB ROOM TYPE PREDICTOR
-   script.js
-   ========================================================== */
-
-const APP_VERSION = "4";
-const API_URL = "/predict";
-const HEALTH_URL = "/health";
+const APP_VERSION = "6";
 
 const dom = {};
-const uiIds = [
+
+const ids = [
     "predictionForm",
     "loading",
     "result",
@@ -18,14 +12,19 @@ const uiIds = [
     "themeBtn"
 ];
 
+function getApiUrl(path) {
+    // When frontend is served by FastAPI/Render,
+    // use the same origin.
+    return new URL(path, window.location.origin).toString();
+}
+
 function initUI() {
-    console.log(`App version ${APP_VERSION} loaded`);
-    uiIds.forEach((id) => {
+    ids.forEach(id => {
         dom[id] = document.getElementById(id);
     });
 
     if (!dom.predictionForm) {
-        console.error("Prediction form not found in HTML.");
+        console.error("Prediction form not found.");
         return;
     }
 
@@ -34,22 +33,39 @@ function initUI() {
     if (dom.themeBtn) {
         dom.themeBtn.addEventListener("click", () => {
             document.body.classList.toggle("dark");
+
             const icon = dom.themeBtn.querySelector("i");
+
             if (icon) {
-                icon.className = document.body.classList.contains("dark")
-                    ? "fa-solid fa-sun"
-                    : "fa-solid fa-moon";
+                icon.className =
+                    document.body.classList.contains("dark")
+                        ? "fa-solid fa-sun"
+                        : "fa-solid fa-moon";
             }
         });
     }
 }
 
-function getValue(id, parser = (v) => v) {
+function getValue(id, parser = value => value) {
     const element = document.getElementById(id);
+
     if (!element) {
-        throw new Error(`Missing input ${id}`);
+        throw new Error(`Missing input: ${id}`);
     }
-    return parser(element.value);
+
+    const value = element.value.trim();
+
+    if (value === "") {
+        throw new Error(`Please enter ${id}`);
+    }
+
+    const parsed = parser(value);
+
+    if (typeof parsed === "number" && !Number.isFinite(parsed)) {
+        throw new Error(`Invalid value for ${id}`);
+    }
+
+    return parsed;
 }
 
 function buildPayload() {
@@ -57,155 +73,281 @@ function buildPayload() {
         latitude: getValue("latitude", parseFloat),
         longitude: getValue("longitude", parseFloat),
         price: getValue("price", parseFloat),
-        minimum_nights: getValue("minimum_nights", (v) => parseInt(v, 10)),
-        number_of_reviews: getValue("number_of_reviews", (v) => parseInt(v, 10)),
-        reviews_per_month: getValue("reviews_per_month", parseFloat),
-        calculated_host_listings_count: getValue("calculated_host_listings_count", (v) => parseInt(v, 10)),
-        availability_365: getValue("availability_365", (v) => parseInt(v, 10)),
-        neighbourhood_group: getValue("neighbourhood_group", String),
-        neighbourhood: getValue("neighbourhood", String)
+        minimum_nights: getValue(
+            "minimum_nights",
+            value => parseInt(value, 10)
+        ),
+        number_of_reviews: getValue(
+            "number_of_reviews",
+            value => parseInt(value, 10)
+        ),
+        reviews_per_month: getValue(
+            "reviews_per_month",
+            parseFloat
+        ),
+        calculated_host_listings_count: getValue(
+            "calculated_host_listings_count",
+            value => parseInt(value, 10)
+        ),
+        availability_365: getValue(
+            "availability_365",
+            value => parseInt(value, 10)
+        ),
+        neighbourhood_group: getValue(
+            "neighbourhood_group",
+            String
+        ),
+        neighbourhood: getValue(
+            "neighbourhood",
+            String
+        )
     };
 }
 
 function setError(message) {
-    if (dom.loading) dom.loading.classList.add("hidden");
-    if (dom.result) dom.result.classList.add("hidden");
+    if (dom.loading) {
+        dom.loading.classList.add("hidden");
+    }
+
+    if (dom.result) {
+        dom.result.classList.add("hidden");
+    }
+
     if (dom.emptyState) {
         dom.emptyState.classList.remove("hidden");
+
         dom.emptyState.innerHTML = `
             <i class="fa-solid fa-circle-exclamation"></i>
             <h3>Prediction Failed</h3>
-            <p>${message}</p>
+            <p>${escapeHtml(message)}</p>
         `;
     }
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 async function handleSubmit(event) {
     event.preventDefault();
 
-    if (dom.emptyState) dom.emptyState.classList.add("hidden");
-    if (dom.result) dom.result.classList.add("hidden");
-    if (dom.loading) dom.loading.classList.remove("hidden");
+    if (dom.emptyState) {
+        dom.emptyState.classList.add("hidden");
+    }
 
-    let payload;
-    try {
-        payload = buildPayload();
-    } catch (err) {
-        setError("Please fill all fields correctly.");
-        console.error(err);
-        return;
+    if (dom.result) {
+        dom.result.classList.add("hidden");
+    }
+
+    if (dom.loading) {
+        dom.loading.classList.remove("hidden");
     }
 
     try {
-        console.log(`App version ${APP_VERSION}: Sending prediction request to`, API_URL, payload);
-        const response = await fetch(API_URL, {
+        const payload = buildPayload();
+
+        const apiUrl = getApiUrl("/predict");
+
+        console.log("Sending request:", apiUrl);
+        console.log("Payload:", payload);
+
+        const response = await fetch(apiUrl, {
             method: "POST",
-            cache: "no-store",
-            credentials: "same-origin",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
             body: JSON.stringify(payload)
         });
 
-        const bodyText = await response.text();
-        console.log(`App version ${APP_VERSION}: Received response`, response.status, bodyText);
+        const text = await response.text();
 
-        if (!response.ok) {
-            throw new Error(`Server error ${response.status}: ${bodyText}`);
-        }
+        console.log("Server status:", response.status);
+        console.log("Server response:", text);
 
         let data;
+
         try {
-            data = JSON.parse(bodyText);
-        } catch (parseError) {
-            throw new Error(`Invalid JSON response: ${bodyText || "<empty>"}`);
+            data = JSON.parse(text);
+        } catch {
+            throw new Error(
+                `Server returned invalid JSON: ${text}`
+            );
+        }
+
+        if (!response.ok) {
+            let message = `Server error ${response.status}`;
+
+            if (data.detail) {
+                if (typeof data.detail === "string") {
+                    message = data.detail;
+                } else if (data.detail.message) {
+                    message = data.detail.message;
+                } else {
+                    message = JSON.stringify(data.detail);
+                }
+            }
+
+            throw new Error(message);
         }
 
         renderPrediction(data);
-    } catch (err) {
-        setError(err.message);
-        console.error(err);
+
+    } catch (error) {
+        console.error("Prediction error:", error);
+        setError(error.message);
     }
 }
 
 function renderPrediction(data) {
-    if (dom.loading) dom.loading.classList.add("hidden");
+    if (dom.loading) {
+        dom.loading.classList.add("hidden");
+    }
 
     if (!data || !data.predicted_room_type) {
-        setError("Invalid response from server.");
+        setError("Invalid response from prediction server.");
         return;
     }
 
-    if (dom.emptyState) dom.emptyState.classList.add("hidden");
-    if (dom.result) dom.result.classList.remove("hidden");
-    if (dom.predictionText) dom.predictionText.textContent = data.predicted_room_type;
+    if (dom.emptyState) {
+        dom.emptyState.classList.add("hidden");
+    }
 
-    if (dom.probabilityBars) {
-        dom.probabilityBars.innerHTML = "";
-        const labels = ["Entire home/apt", "Private room", "Shared room"];
-        if (Array.isArray(data.probability)) {
-            data.probability.forEach((value, index) => {
-                const percent = (value * 100).toFixed(1);
-                const label = labels[index] || `Class ${index + 1}`;
-                dom.probabilityBars.insertAdjacentHTML("beforeend", `
-                    <div class="probability-item">
-                        <div class="label">
-                            <span>${label}</span>
-                            <span>${percent}%</span>
-                        </div>
-                        <div class="progress">
-                            <div class="progress-bar" style="width:${percent}%"></div>
-                        </div>
-                    </div>
-                `);
-            });
-        } else {
-            dom.probabilityBars.innerHTML = `
-                <div class="probability-item">
-                    <div class="label">
-                        <span>No probability data</span>
-                    </div>
+    if (dom.result) {
+        dom.result.classList.remove("hidden");
+    }
+
+    if (dom.predictionText) {
+        dom.predictionText.textContent =
+            data.predicted_room_type;
+    }
+
+    if (!dom.probabilityBars) {
+        return;
+    }
+
+    dom.probabilityBars.innerHTML = "";
+
+    const probabilities = data.probability || [];
+
+    let classes = data.classes || [
+        "Entire home/apt",
+        "Private room",
+        "Shared room"
+    ];
+
+    probabilities.forEach((value, index) => {
+        const percent = Math.max(
+            0,
+            Math.min(100, Number(value) * 100)
+        );
+
+        const label =
+            classes[index] || `Class ${index + 1}`;
+
+        const item = document.createElement("div");
+
+        item.className = "probability-item";
+
+        item.innerHTML = `
+            <div class="label">
+                <span>${escapeHtml(label)}</span>
+                <span>${percent.toFixed(1)}%</span>
+            </div>
+
+            <div class="progress">
+                <div
+                    class="progress-bar"
+                    style="width:${percent}%">
                 </div>
+            </div>
+        `;
+
+        dom.probabilityBars.appendChild(item);
+    });
+}
+
+async function checkBackend() {
+    try {
+        const healthUrl = getApiUrl("/health");
+
+        console.log("Checking backend:", healthUrl);
+
+        const response = await fetch(healthUrl, {
+            method: "GET",
+            cache: "no-store"
+        });
+
+        const data = await response.json();
+
+        console.log("Backend health:", data);
+
+        if (!response.ok || data.status !== "ok") {
+            throw new Error(
+                data.model_error ||
+                "Backend is not ready."
+            );
+        }
+
+        if (data.model_loaded === false) {
+            throw new Error(
+                data.model_error ||
+                "ML model could not be loaded."
+            );
+        }
+
+    } catch (error) {
+        console.error("Backend health check failed:", error);
+
+        if (dom.emptyState) {
+            dom.emptyState.classList.remove("hidden");
+
+            dom.emptyState.innerHTML = `
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <h3>Backend Offline</h3>
+                <p>${escapeHtml(error.message)}</p>
             `;
         }
     }
 }
 
-window.addEventListener("load", () => {
+window.addEventListener("DOMContentLoaded", () => {
+    console.log(`Airbnb Predictor v${APP_VERSION}`);
+
     initUI();
-    fetch(HEALTH_URL, { cache: "no-store", credentials: "same-origin" })
-        .then((res) => {
-            console.log(`App version ${APP_VERSION}: health response`, res.status, res.statusText);
-            if (!res.ok) {
-                throw new Error(`Health check failed: ${res.status} ${res.statusText}`);
-            }
-            return res.json();
-        })
-        .then((health) => console.log("API Status:", health.status))
-        .catch((err) => {
-            console.warn("API health check failed.", err);
-            if (dom.emptyState) {
-                dom.emptyState.classList.remove("hidden");
-                dom.emptyState.innerHTML = `
-                    <i class="fa-solid fa-circle-exclamation"></i>
-                    <h3>Backend Offline</h3>
-                    <p>${err.message}</p>
-                `;
-            }
-        });
+    checkBackend();
 });
 
-document.addEventListener("keydown", (e) => {
-    if (e.key === "F2") {
-        document.getElementById("latitude").value = 40.7128;
-        document.getElementById("longitude").value = -73.935242;
-        document.getElementById("price").value = 150;
-        document.getElementById("minimum_nights").value = 2;
-        document.getElementById("number_of_reviews").value = 120;
-        document.getElementById("reviews_per_month").value = 4.6;
-        document.getElementById("calculated_host_listings_count").value = 3;
-        document.getElementById("availability_365").value = 180;
-        document.getElementById("neighbourhood_group").value = "Brooklyn";
-        document.getElementById("neighbourhood").value = "Williamsburg";
-        alert("Sample data loaded.");
+document.addEventListener("keydown", event => {
+    if (event.key !== "F2") {
+        return;
     }
+
+    const values = {
+        latitude: "40.7128",
+        longitude: "-73.935242",
+        price: "150",
+        minimum_nights: "2",
+        number_of_reviews: "120",
+        reviews_per_month: "4.6",
+        calculated_host_listings_count: "3",
+        availability_365: "180",
+        neighbourhood_group: "Brooklyn",
+        neighbourhood: "Williamsburg"
+    };
+
+    Object.entries(values).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+
+        if (element) {
+            element.value = value;
+        }
+    });
+
+    alert("Sample Airbnb data loaded.");
 });
